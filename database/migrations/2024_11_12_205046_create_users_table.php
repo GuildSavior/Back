@@ -13,10 +13,12 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('password');
-            $table->string('username')->unique();   
+            $table->string('discord_id')->unique();
+            $table->string('username')->unique();
+            $table->string('email')->nullable();
+            $table->string('avatar')->nullable();
             $table->rememberToken()->nullable();
-            $table->foreignId('guild_id')->constrained('guilds')->onDelete('cascade');
+            $table->foreignId('guild_id')->nullable()->constrained('guilds')->onDelete('cascade');
             $table->foreignId('role_id')->nullable()->constrained('roles'); // Référence au rôle du joueur
             $table->integer('total_dkp')->default(0);    // Points DKP, initialisés à 0
             $table->string('refresh_token')->nullable();

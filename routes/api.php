@@ -22,12 +22,16 @@ use \App\Http\Controllers\UserController;
 });*/
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
-Route::get('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
-Route::get('/user', [UserController::class, 'getAuthenticatedUser']);
-Route::middleware('web')->group(function () {
+Route::get('/auth/discord', [DiscordAuthController::class, 'redirectToDiscord']);
+Route::get('/auth/discord/callback', [DiscordAuthController::class, 'handleDiscordCallback']);
+
+Route::group(['middleware' => 'auth:sanctum'], function()
+    {
+        Route::get('/user', [UserController::class, 'getAuthenticatedUserInfos']);
+        Route::get('/logout', [DiscordAuthController::class, 'logout']);
+    }
+);
+/*Route::middleware('web')->group(function () {
     Route::get('/auth/discord/redirect', [DiscordAuthController::class, 'redirectToDiscord']);
     Route::get('/auth/discord/callback', [DiscordAuthController::class, 'handleDiscordCallback']);
-});
-
-
-
+});*/

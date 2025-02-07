@@ -11,11 +11,10 @@ use function Ramsey\Uuid\v1;
 
 class UserController extends Controller
 {
-    public function getAuthenticatedUser(Request $request)
+    public function getAuthenticatedUserInfos(Request $request)
     {
 
         $user = $request->user();
-        dd($user);
         if (!$user) {
             return response()->json([
                 'status' => 'error',
@@ -44,7 +43,6 @@ class UserController extends Controller
      public function createUserFromDiscord($discordUser)
     {
         // Créer un nouvel utilisateur dans la base de données
-        dd($discordUser);
         $user = new User();
         $user->email = $discordUser->email;
         $user->username = $discordUser->name;

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 
 class DiscordAuthController extends Controller
@@ -14,63 +15,53 @@ class DiscordAuthController extends Controller
         return Socialite::driver('discord')->redirect();
     }
 
-    public function handleDiscordCallback(Request $request)
-{
-    $userController = new UserController();
-    try {
-        $discordUser = Socialite::driver('discord')->user();
+    public function handleDiscordCallback()
+    {
+        try {
+            // DEBUG : Log l'arrivée dans la fonction
+            Log::info('Discord callback called.');
 
-        $user = User::where('discord_id', $discordUser->getId())->first();
-        if ($user) {
-            $user = $userController->updateUserFromDiscord($user, $discordUser);
-        } else {
-            $user = $userController->createUserFromDiscord($discordUser);
-        }
+            // Récupère les infos de l'utilisateur Discord
+            $discordUser = Socialite::driver('discord')->user();
 
-        if (!$user) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Utilisateur introuvable ou non créé.',
-            ], 500);
-        }
+            // DEBUG : Vérifie si on récupère bien les infos de Discord
+            Log::info('Discord user data:', (array) $discordUser);
 
-        // Générer un token pour l'utilisateur
-        $token = $user->createToken('DiscordLoginToken')->plainTextToken;
-        $user->refresh_token = $token;
-        $user->remember_token = $token;
-        $user->save();
+            // Vérifie si l'utilisateur a bien un email (parfois il est null)
+            if (!$discordUser->getEmail()) {
+                Log::error('Discord email is null.');
+                return response()->json(['error' => 'Email Discord non disponible.'], 400);
+            }
 
-        return redirect()->away('http://localhost:4200/toto?token=' . $token);
+            // Vérifie si l'utilisateur existe, sinon, le créer
+            $user = User::updateOrCreate(
+                ['discord_id' => $discordUser->id],
+                [
+                    'name' => $discordUser->name ?? $discordUser->nickname,
+                    'email' => $discordUser->getEmail(),
+                    'avatar' => $discordUser->avatar,
+                ]
+            );
 
-    } catch (\Exception $e) {
-        dump("error");
-        if ($request->query('response_type') === 'json') {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-            ], 500);
-        } else {
-            return redirect()->away('http://localhost:4200/error?message=' . urlencode($e->getMessage()));
+            // DEBUG : Vérifie si l'utilisateur est bien créé ou mis à jour
+            Log::info('User saved in DB:', $user->toArray());
+
+            // Génère un token d’authentification pour Angular
+            $token = $user->createToken('authToken',['expires_in' => 7200])->plainTextToken;
+            $redirectUrl = 'http://localhost:4200/discord-callback?token=' . $token . '&id=' . $discordUser->id;
+
+            return redirect()->away($redirectUrl);
+
+        } catch (\Exception $e) {
+            // Log l'erreur pour voir ce qui se passe
+            Log::error('Discord Auth Error: ' . $e->getMessage());
+
+            return response()->json(['error' => 'Erreur lors de l\'authentification.'], 500);
         }
     }
-}
 
-    /*Route::get('/auth/discord/callback', function () {
-    $user = Socialite::driver('discord')->user();
-
-    // Logique de connexion ou création d'utilisateur
-    $token = $user->token;
-    $discordUser = [
-        'id' => $user->getId(),
-        'name' => $user->getName(),
-        'avatar' => $user->getAvatar(),
-        'email' => $user->getEmail(),
-    ];
-    // Générez un JWT ou autre token pour Angular
-    return response()->json([
-        'token' => $token,
-        'user' => $discordUser,
-        'redirectUrl' => '/dashboard',
-    ]);
-})->middleware('web');*/
+    public function logout(Request $request){
+            $request->user()->currentAccessToken()->delete();
+            return response()->json(['message' => 'Déconnexion réussie.']);
+        }
 }

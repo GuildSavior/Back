@@ -37,7 +37,7 @@ class DiscordAuthController extends Controller
             $user = User::updateOrCreate(
                 ['discord_id' => $discordUser->id],
                 [
-                    'name' => $discordUser->name ?? $discordUser->nickname,
+                    'username' => $discordUser->name ?? $discordUser->nickname,
                     'email' => $discordUser->getEmail(),
                     'avatar' => $discordUser->avatar,
                 ]

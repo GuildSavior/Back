@@ -28,8 +28,8 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'username' => 'chouba',   // Génère un nom d'utilisateur unique
-            'password' => static::$password ??= Hash::make('Password2'),
+            'username' => 'chouba', 
+            'discord_id' => '0',  // Génère un nom d'utilisateur unique
             'remember_token' => Str::random(10),
             'guild_id' => 1,   // Associe une guilde aléatoire à partir des guildes existantes
             'role_id' => 1,     // Associe un rôle aléatoire à partir des rôles existants

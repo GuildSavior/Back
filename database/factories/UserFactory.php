@@ -2,43 +2,38 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
+use App\Models\Guild;
+use App\Models\Role;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Faker\Generator as Faker;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
- */
 class UserFactory extends Factory
 {
-    /**
-     * The current password being used by the factory.
-     */
     protected static ?string $password;
+    /**
+     * Le nom du modèle associé à la factory.
+     *
+     * @var string
+     */
+    protected $model = User::class;
 
     /**
-     * Define the model's default state.
+     * Définir l'état par défaut du modèle.
      *
      * @return array<string, mixed>
      */
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
+            'username' => 'chouba', 
+            'discord_id' => '0',  // Génère un nom d'utilisateur unique
             'remember_token' => Str::random(10),
+            'guild_id' => 1,   // Associe une guilde aléatoire à partir des guildes existantes
+            'role_id' => 1,     // Associe un rôle aléatoire à partir des rôles existants
+            'total_dkp' => $this->faker->numberBetween(0, 1000), // Génère un total de DKP entre 0 et 1000
         ];
-    }
-
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
-    public function unverified(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
-        ]);
     }
 }

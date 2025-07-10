@@ -170,6 +170,10 @@ return [
         App\Providers\RouteServiceProvider::class,
     ])->toArray(),
 
+    'stripe' => [
+        'webhook' => env('STRIPE_WEBHOOK_SECRET', 'your-stripe-webhook'),
+        'secret' => env('STRIPE_SECRET', 'your-stripe-secret'),
+    ],
     /*
     |--------------------------------------------------------------------------
     | Class Aliases

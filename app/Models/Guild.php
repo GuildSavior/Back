@@ -14,6 +14,7 @@ class Guild extends Model
         'name',
         'description',
         'creation_date',
+        'nationality',
     ];
 
     // Les attributs qui doivent être castés

@@ -76,9 +76,14 @@ class User extends Authenticatable
         return $this->hasOne(Subscription::class);
     }
 
-    public function isPremium()
+    // Méthode helper pour vérifier si premium
+    public function isPremium(): bool
     {
-        return $this->subscription && $this->subscription->isPremium();
+        $subscription = $this->subscription;
+        
+        return $subscription 
+            && $subscription->status === 'active' 
+            && ($subscription->expires_at === null || $subscription->expires_at > now());
     }
 
     public function hasFeature($feature)

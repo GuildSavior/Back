@@ -13,7 +13,6 @@ class UserController extends Controller
 {
     public function getAuthenticatedUserInfos(Request $request)
     {
-
         $user = $request->user();
         if (!$user) {
             return response()->json([
@@ -22,9 +21,26 @@ class UserController extends Controller
             ], 401);
         }
 
+        // Charger les relations
+        $user->load(['guild', 'role', 'subscription']);
+
         return response()->json([
             'status' => 'success',
-            'user' => $user,
+            'user' => [
+                'id' => $user->id,
+                'discord_id' => $user->discord_id,
+                'username' => $user->username,
+                'email' => $user->email,
+                'avatar' => $user->avatar,
+                'guild_id' => $user->guild_id,
+                'role_id' => $user->role_id,
+                'statut' => $user->statut,
+                'total_dkp' => $user->total_dkp,
+                'subscription' => $user->subscription,
+                'is_premium' => $user->isPremium(),
+                'guild' => $user->guild,
+                'role' => $user->role,
+            ],
         ], 200);
     }
 

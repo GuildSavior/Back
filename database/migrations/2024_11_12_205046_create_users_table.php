@@ -19,8 +19,10 @@ return new class extends Migration
             $table->string('avatar')->nullable();
             $table->rememberToken()->nullable();
             $table->foreignId('role_id')->nullable()->constrained('roles'); // Référence au rôle du joueur
+            $table->foreignId('guild_id')->nullable()->constrained('guilds')->onDelete('set null');
             $table->string('refresh_token')->nullable();
             $table->string('statut')->default('on');
+            $table->integer('total_dkp')->default(0);
             $table->timestamps();
         });
     }

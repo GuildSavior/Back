@@ -214,4 +214,20 @@ class User extends Authenticatable
         $memberGuild = $this->memberGuild()->first();
         return $memberGuild ? $memberGuild->pivot->role : null;
     }
+
+    /**
+     * Profil joueur de l'utilisateur
+     */
+    public function player()
+    {
+        return $this->hasOne(Player::class);
+    }
+
+    /**
+     * Vérifier si l'utilisateur a un profil joueur
+     */
+    public function hasPlayerProfile(): bool
+    {
+        return $this->player()->exists();
+    }
 }

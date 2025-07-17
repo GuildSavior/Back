@@ -117,4 +117,101 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Role::class);
     }
+
+    /**
+     * Guildes possédées (premium seulement)
+     */
+    public function ownedGuilds()
+    {
+        return $this->hasMany(Guild::class, 'owner_id');
+    }
+
+    /**
+     * Guilde où l'utilisateur est membre (toutes les guildes)
+     */
+    public function guilds()
+    {
+        return $this->belongsToMany(Guild::class, 'guild_members')
+                    ->withPivot('role', 'joined_at')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Guilde où l'utilisateur est membre (une seule - la première)
+     */
+    public function memberGuild()
+    {
+        return $this->belongsToMany(Guild::class, 'guild_members')
+                    ->withPivot('role', 'joined_at')
+                    ->withTimestamps()
+                    ->take(1); // ⭐ Utiliser take(1) au lieu de limit(1)
+    }
+
+    /**
+     * Récupérer LA guilde de l'utilisateur (membre ou propriétaire)
+     */
+    public function getCurrentGuild()
+    {
+        // D'abord vérifier s'il possède une guilde (priorité au owner)
+        $ownedGuild = $this->ownedGuilds()->first();
+        if ($ownedGuild) {
+            return $ownedGuild;
+        }
+
+        // Sinon vérifier s'il est membre d'une guilde
+        return $this->memberGuild()->first();
+    }
+
+    /**
+     * Vérifier si l'utilisateur est dans une guilde
+     */
+    public function isInAnyGuild(): bool
+    {
+        return $this->memberGuild()->exists() || $this->ownedGuilds()->exists();
+    }
+
+    /**
+     * Vérifier si l'utilisateur peut créer une guilde
+     */
+    public function canCreateGuild(): bool
+    {
+        // Doit être premium ET ne pas déjà posséder une guilde
+        return $this->isPremium() && !$this->ownedGuilds()->exists();
+    }
+
+    /**
+     * Vérifier si l'utilisateur peut rejoindre une guilde
+     */
+    public function canJoinGuild(): bool
+    {
+        return !$this->isInAnyGuild();
+    }
+
+    /**
+     * Quitter sa guilde actuelle
+     */
+    public function leaveCurrentGuild(): bool
+    {
+        $memberGuild = $this->memberGuild()->first();
+        if ($memberGuild) {
+            $this->memberGuild()->detach();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Obtenir le rôle de l'utilisateur dans sa guilde actuelle
+     */
+    public function getRoleInCurrentGuild(): ?string
+    {
+        // Si il possède une guilde, il est owner
+        if ($this->ownedGuilds()->exists()) {
+            return 'owner';
+        }
+
+        // Sinon récupérer son rôle en tant que membre
+        $memberGuild = $this->memberGuild()->first();
+        return $memberGuild ? $memberGuild->pivot->role : null;
+    }
 }

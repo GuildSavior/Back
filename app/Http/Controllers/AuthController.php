@@ -61,5 +61,18 @@ class AuthController extends Controller
     ]);
 }
 
+public function redirectToDiscord()
+{
+    $discordUrl = 'https://discord.com/api/oauth2/authorize?' . http_build_query([
+        'client_id' => env('DISCORD_CLIENT_ID'),
+        'redirect_uri' => env('DISCORD_REDIRECT_URI'),
+        'response_type' => 'code',
+        'scope' => 'identify email',
+        'prompt' => 'select_account' // ⭐ AJOUTER ÇA
+    ]);
+
+    return response()->json(['url' => $discordUrl]);
+}
+
 
 }

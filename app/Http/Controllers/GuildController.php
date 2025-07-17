@@ -222,4 +222,70 @@ class GuildController extends Controller
             'user_role' => $guild->owner_id === $user->id ? 'owner' : 'member'
         ]);
     }
+    /**
+     * Récupérer les membres de ma guilde
+     */
+    public function getMembers()
+    {
+        $user = Auth::user();
+        
+        // ⭐ UTILISER LA NOUVELLE LOGIQUE avec getCurrentGuild()
+        $guild = $user->getCurrentGuild();
+        
+        if (!$guild) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vous n\'êtes pas dans une guilde'
+            ], 404);
+        }
+
+        try {
+            // ⭐ CHARGER LES MEMBRES VIA LA RELATION guild_members avec les profils joueurs
+            $guild->load(['members.player']);
+            
+            $members = $guild->members->map(function ($member) use ($guild) {
+                return [
+                    'id' => $member->id,
+                    'username' => $member->username,
+                    'avatar' => $member->avatar,
+                    'discord_id' => $member->discord_id,
+                    'joined_at' => $member->pivot->joined_at, // ⭐ DEPUIS guild_members
+                    'role' => $member->pivot->role, // ⭐ DEPUIS guild_members
+                    'is_owner' => $guild->owner_id === $member->id, // ⭐ COMPARAISON CORRECTE
+                    'player' => $member->player ? [
+                        'id' => $member->player->id,
+                        'name' => $member->player->name,
+                        'level' => $member->player->level,
+                        'class' => $member->player->class,
+                        'dkp' => $member->player->dkp,
+                        'events_joined' => $member->player->events_joined,
+                    ] : null
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'guild' => [
+                    'id' => $guild->id,
+                    'name' => $guild->name,
+                    'description' => $guild->description,
+                    'member_count' => $guild->member_count,
+                    'owner_id' => $guild->owner_id,
+                ],
+                'members' => $members,
+                'user_role' => $user->getRoleInCurrentGuild() // ⭐ RÔLE DE L'UTILISATEUR ACTUEL
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur récupération membres guilde:', [
+                'user_id' => $user->id,
+                'guild_id' => $guild->id ?? null,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des membres'
+            ], 500);
+        }
+    }
 }

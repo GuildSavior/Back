@@ -12,26 +12,57 @@ class Player extends Model
     protected $fillable = [
         'name',
         'level',
-        'dkp',
-        'guild_id',
-        'user_id', // Ajouté ici
         'class',
-        'events_joined',
+        'user_id',
+        // ⭐ NE PAS INCLURE 'dkp' et 'events_joined' dans fillable
+    ];
+
+    protected $casts = [
+        'level' => 'integer',
+        'dkp' => 'integer',
+        'events_joined' => 'integer',
     ];
 
     /**
-     * Relation avec la guilde.
-     */
-    public function guild()
-    {
-        return $this->belongsTo(Guild::class);
-    }
-
-    /**
-     * Relation avec l'utilisateur.
+     * Relation avec l'utilisateur
      */
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Classes disponibles
+     */
+    public static function getAvailableClasses(): array
+    {
+        return [
+            'Warrior', 'Paladin', 'Hunter', 'Rogue', 'Priest',
+            'Shaman', 'Mage', 'Warlock', 'Druid', 'Death Knight'
+        ];
+    }
+
+    /**
+     * Ajouter des DKP (méthode admin uniquement)
+     */
+    public function addDkp(int $amount): void
+    {
+        $this->increment('dkp', $amount);
+    }
+
+    /**
+     * Retirer des DKP (méthode admin uniquement)
+     */
+    public function removeDkp(int $amount): void
+    {
+        $this->decrement('dkp', $amount);
+    }
+
+    /**
+     * Incrémenter les événements rejoints
+     */
+    public function incrementEventsJoined(): void
+    {
+        $this->increment('events_joined');
     }
 }

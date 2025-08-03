@@ -45,14 +45,15 @@ class GuildInvitationController extends Controller
                 'expires_at' => $expiresAt,
             ]);
 
-            // ⭐ GÉNÉRER UNE URL WEB (sans /api/) pour le partage
-            $inviteUrl = url("/invite/{$invitation->code}");
+            // ⭐ UTILISER L'URL BACKEND DEPUIS LE .ENV
+            $backendUrl = env('BACKEND_URL', env('APP_URL', 'http://127.0.0.1:8000'));
+            $inviteUrl = $backendUrl . "/invite/{$invitation->code}";
 
             Log::info('Invitation créée:', [
                 'guild_id' => $guild->id,
                 'code' => $invitation->code,
                 'created_by' => $user->id,
-                'url' => $inviteUrl // ⭐ URL sans /api/
+                'url' => $inviteUrl
             ]);
 
             return response()->json([
@@ -60,7 +61,7 @@ class GuildInvitationController extends Controller
                 'message' => 'Invitation créée avec succès',
                 'invitation' => [
                     'code' => $invitation->code,
-                    'url' => $inviteUrl, // ⭐ URL PARTAGEABLE
+                    'url' => $inviteUrl,
                     'max_uses' => $invitation->max_uses,
                     'expires_at' => $invitation->expires_at,
                 ]

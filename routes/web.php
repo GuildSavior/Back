@@ -25,3 +25,10 @@ Route::get('/dashboard', function () {
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
 });
+
+// Route publique pour les invitations de guilde
+Route::get('/invite/{code}', function ($code) {
+    // Rediriger vers le frontend avec le code
+    $frontUrl = env('FRONT_URL', 'http://127.0.0.1:4200');
+    return redirect("{$frontUrl}/join-guild/{$code}");
+})->name('guild.invite.redirect');

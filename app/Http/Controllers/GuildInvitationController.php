@@ -45,13 +45,14 @@ class GuildInvitationController extends Controller
                 'expires_at' => $expiresAt,
             ]);
 
-            // ⭐ CORRIGER L'URL POUR INCLURE /api/
-            $inviteUrl = url("/api/invite/{$invitation->code}");
+            // ⭐ GÉNÉRER UNE URL WEB (sans /api/) pour le partage
+            $inviteUrl = url("/invite/{$invitation->code}");
 
             Log::info('Invitation créée:', [
                 'guild_id' => $guild->id,
                 'code' => $invitation->code,
-                'created_by' => $user->id
+                'created_by' => $user->id,
+                'url' => $inviteUrl // ⭐ URL sans /api/
             ]);
 
             return response()->json([
@@ -59,7 +60,7 @@ class GuildInvitationController extends Controller
                 'message' => 'Invitation créée avec succès',
                 'invitation' => [
                     'code' => $invitation->code,
-                    'url' => $inviteUrl, // ⭐ MAINTENANT CORRECT
+                    'url' => $inviteUrl, // ⭐ URL PARTAGEABLE
                     'max_uses' => $invitation->max_uses,
                     'expires_at' => $invitation->expires_at,
                 ]
@@ -97,7 +98,7 @@ class GuildInvitationController extends Controller
                                          return [
                                              'id' => $invitation->id,
                                              'code' => $invitation->code,
-                                             'url' => url("/api/invite/{$invitation->code}"), // ⭐ CORRIGER ICI AUSSI
+                                             'url' => url("/invite/{$invitation->code}"), // ⭐ URL SANS /api/
                                              'max_uses' => $invitation->max_uses,
                                              'uses_count' => $invitation->uses_count,
                                              'expires_at' => $invitation->expires_at,

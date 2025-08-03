@@ -64,16 +64,17 @@ public function handleDiscordCallback()
         // Récupérer l'URL front selon l'env
         $frontUrl = env('FRONT_URL', 'http://127.0.0.1:4200');
 
+
         return redirect($frontUrl . '/discord-callback')
             ->withCookie(cookie(
-                'auth_token',    // nom du cookie
-                $token,          // valeur (token)
-                120,             // durée (minutes)
-                '/',             // path
-                null,            // domain
-                false,           // secure (false pour http en dev)
-                false,           // httpOnly (FALSE pour que JS puisse y accéder)
-                'Lax'            // sameSite
+                'auth_token',    
+                $token,          
+                120,             // 2 heures
+                '/',             // path (tout le site)
+                '.82.112.255.241', // ⭐ DOMAINE AVEC POINT pour inclure tous les ports
+                false,           // secure (false pour http)
+                false,           // httpOnly (false pour JS)
+                'None'           // ⭐ sameSite None pour cross-origin
             ));
 
     } catch (\Exception $e) {

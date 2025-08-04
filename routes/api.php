@@ -56,6 +56,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/members', [GuildController::class, 'getMembers']);
         Route::post('/leave', [GuildController::class, 'leave']);
         
+        // ⭐ NOUVELLE ROUTE POUR DISSOUDRE LA GUILDE
+        Route::delete('/disband', [GuildController::class, 'disband']);
+        
         // Invitations
         Route::prefix('invitations')->group(function () {
             Route::get('/', [GuildInvitationController::class, 'index']);

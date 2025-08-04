@@ -10,6 +10,7 @@ use App\Http\Controllers\StripeController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\GuildController;
 use App\Http\Controllers\GuildInvitationController;
+use App\Http\Controllers\EventController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -68,6 +69,15 @@ Route::middleware('auth:sanctum')->group(function () {
             // ✅ Routes avec paramètres à la fin
             Route::delete('/{invitation}/delete', [GuildInvitationController::class, 'delete']);
             Route::delete('/{invitation}', [GuildInvitationController::class, 'deactivate']);
+        });
+        
+        // ⭐ NOUVELLES ROUTES POUR LES ÉVÉNEMENTS
+        Route::prefix('events')->group(function () {
+            Route::get('/', [EventController::class, 'index']);                    // Lister les événements
+            Route::post('/', [EventController::class, 'create']);                  // Créer un événement (owner)
+            Route::post('/{event}/participate', [EventController::class, 'participate']); // S'inscrire
+            Route::post('/{event}/confirm', [EventController::class, 'confirm']);         // Confirmer venue
+            Route::post('/{event}/validate', [EventController::class, 'validateAttendance']); // Valider avec code
         });
     });
     

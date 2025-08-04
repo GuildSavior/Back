@@ -13,7 +13,11 @@ class StripeController extends Controller
     public function createCheckoutSession(Request $request)
     {
         \Log::info('Stripe session creation started');
-        
+        \Log::info('Debug Stripe config:', [
+    'stripe_secret' => env('STRIPE_SECRET') ? 'SET' : 'NOT SET',
+    'app_env' => env('APP_ENV'),
+    'config_cached' => config('app.env')
+]);
         Stripe::setApiKey(env('STRIPE_SECRET'));
         $user = Auth::user();
         

@@ -86,9 +86,27 @@ class StripeController extends Controller
         $sig_header = $request->header('Stripe-Signature');
         $event = null;
 
+        // ⭐ AMÉLIORER LA RÉCUPÉRATION DU WEBHOOK SECRET
         $webhookSecret = env('APP_ENV') === 'production' 
             ? config('services.stripe.webhook_secret_production')
             : config('services.stripe.webhook_secret');
+
+        // ⭐ FALLBACK SI CONFIG NE MARCHE PAS
+        if (!$webhookSecret) {
+            $webhookSecret = env('APP_ENV') === 'production' 
+                ? env('STRIPE_WEBHOOK_SECRET_PRODUCTION')
+                : env('STRIPE_WEBHOOK_SECRET');
+        }
+
+        // ⭐ DEBUG POUR VOIR QUELLE CLÉ EST UTILISÉE
+        \Log::info('Webhook secret debug:', [
+            'app_env' => env('APP_ENV'),
+            'config_webhook_secret' => config('services.stripe.webhook_secret'),
+            'config_webhook_secret_prod' => config('services.stripe.webhook_secret_production'),
+            'env_webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+            'env_webhook_secret_prod' => env('STRIPE_WEBHOOK_SECRET_PRODUCTION'),
+            'final_webhook_secret' => substr($webhookSecret, 0, 20) . '...' // Masquer la clé complète
+        ]);
 
         try {
             $event = \Stripe\Webhook::constructEvent(
@@ -100,7 +118,11 @@ class StripeController extends Controller
             \Log::info('Webhook event verified:', ['type' => $event->type]);
             
         } catch(\Exception $e) {
-            \Log::error('Webhook verification failed:', ['error' => $e->getMessage()]);
+            \Log::error('Webhook verification failed:', [
+                'error' => $e->getMessage(),
+                'signature_header' => $sig_header,
+                'payload_length' => strlen($payload)
+            ]);
             return response('Webhook verification failed', 400);
         }
 

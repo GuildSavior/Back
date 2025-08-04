@@ -80,27 +80,39 @@ class StripeController extends Controller
 
     public function webhook(Request $request)
     {
-        \Log::info('Stripe webhook received - bypassing verification for testing');
+        \Log::info('Stripe webhook received');
         
         $payload = $request->getContent();
-        
-        // ⭐ TEMPORAIRE : SKIP LA VÉRIFICATION POUR TESTER
+        $sig_header = $request->header('Stripe-Signature');
+        $event = null;
+
+        // ⭐ UTILISER LE BON WEBHOOK SECRET
+        $appEnv = config('services.app.env') ?: 'production';
+        $webhookSecret = $appEnv === 'production' 
+            ? config('services.stripe.webhook_secret_production')
+            : config('services.stripe.webhook_secret');
+
         try {
-            $event = json_decode($payload, true);
-            \Log::info('Webhook payload decoded:', ['type' => $event['type'] ?? 'unknown']);
+            // ⭐ VÉRIFICATION STRIPE
+            $event = \Stripe\Webhook::constructEvent(
+                $payload, 
+                $sig_header, 
+                $webhookSecret
+            );
+            
+            \Log::info('Webhook event verified:', ['type' => $event->type]);
             
             // Traiter l'événement checkout.session.completed
-            if (isset($event['type']) && $event['type'] === 'checkout.session.completed') {
-                $session = $event['data']['object'];
-                $userId = $session['metadata']['user_id'] ?? null;
+            if ($event->type === 'checkout.session.completed') {
+                $session = $event->data->object;
+                $userId = $session->metadata->user_id ?? null;
                 
                 \Log::info('Processing checkout completion:', [
-                    'session_id' => $session['id'] ?? 'unknown',
+                    'session_id' => $session->id,
                     'user_id' => $userId
                 ]);
                 
                 if ($userId) {
-                    // Mettre à jour l'abonnement
                     \App\Models\Subscription::updateOrCreate(
                         ['user_id' => $userId],
                         [
@@ -117,9 +129,9 @@ class StripeController extends Controller
             
             return response('Webhook handled successfully', 200);
             
-        } catch (\Exception $e) {
-            \Log::error('Webhook processing failed:', ['error' => $e->getMessage()]);
-            return response('Webhook processing failed', 400);
+        } catch(\Exception $e) {
+            \Log::error('Webhook verification failed:', ['error' => $e->getMessage()]);
+            return response('Webhook verification failed', 400);
         }
     }
 }

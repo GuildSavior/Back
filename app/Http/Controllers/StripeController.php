@@ -86,26 +86,31 @@ class StripeController extends Controller
         $sig_header = $request->header('Stripe-Signature');
         $event = null;
 
-        // ⭐ AMÉLIORER LA RÉCUPÉRATION DU WEBHOOK SECRET
-        $webhookSecret = env('APP_ENV') === 'production' 
+        // ⭐ UTILISER config() AU LIEU DE env() DIRECTEMENT
+        $appEnv = config('services.app.env');
+        
+        // ⭐ CHOISIR LE BON WEBHOOK SECRET
+        $webhookSecret = $appEnv === 'production' 
             ? config('services.stripe.webhook_secret_production')
             : config('services.stripe.webhook_secret');
 
         // ⭐ FALLBACK SI CONFIG NE MARCHE PAS
         if (!$webhookSecret) {
-            $webhookSecret = env('APP_ENV') === 'production' 
+            $webhookSecret = $appEnv === 'production' 
                 ? env('STRIPE_WEBHOOK_SECRET_PRODUCTION')
                 : env('STRIPE_WEBHOOK_SECRET');
         }
 
         // ⭐ DEBUG POUR VOIR QUELLE CLÉ EST UTILISÉE
         \Log::info('Webhook secret debug:', [
-            'app_env' => env('APP_ENV'),
+            'config_app_env' => config('services.app.env'),
+            'env_app_env' => env('APP_ENV'),
+            'final_app_env' => $appEnv,
             'config_webhook_secret' => config('services.stripe.webhook_secret'),
             'config_webhook_secret_prod' => config('services.stripe.webhook_secret_production'),
             'env_webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
             'env_webhook_secret_prod' => env('STRIPE_WEBHOOK_SECRET_PRODUCTION'),
-            'final_webhook_secret' => substr($webhookSecret, 0, 20) . '...' // Masquer la clé complète
+            'final_webhook_secret' => substr($webhookSecret, 0, 20) . '...'
         ]);
 
         try {
@@ -121,7 +126,9 @@ class StripeController extends Controller
             \Log::error('Webhook verification failed:', [
                 'error' => $e->getMessage(),
                 'signature_header' => $sig_header,
-                'payload_length' => strlen($payload)
+                'payload_length' => strlen($payload),
+                'app_env_used' => $appEnv,
+                'webhook_secret_used' => substr($webhookSecret, 0, 20) . '...'
             ]);
             return response('Webhook verification failed', 400);
         }

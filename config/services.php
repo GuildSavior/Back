@@ -45,6 +45,7 @@ return [
     'app' => [
         'front_url' => env('FRONT_URL'),
         'backend_url' => env('BACKEND_URL'),
+        'env' => env('APP_ENV', 'local'), 
     ],
 
 

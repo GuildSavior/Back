@@ -55,11 +55,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{guild}/join', [GuildController::class, 'join']);
         Route::get('/members', [GuildController::class, 'getMembers']);
         Route::post('/leave', [GuildController::class, 'leave']);
+        Route::delete('/disband', [GuildController::class, 'disband']);
         
         // Invitations
         Route::prefix('invitations')->group(function () {
             Route::get('/', [GuildInvitationController::class, 'index']);
             Route::post('/', [GuildInvitationController::class, 'create']);
+            
+            // ✅ IMPORTANT: Routes spécifiques AVANT les routes avec paramètres
+            Route::delete('/cleanup-inactive', [GuildInvitationController::class, 'cleanupInactive']);
+            
+            // ✅ Routes avec paramètres à la fin
+            Route::delete('/{invitation}/delete', [GuildInvitationController::class, 'delete']);
             Route::delete('/{invitation}', [GuildInvitationController::class, 'deactivate']);
         });
     });

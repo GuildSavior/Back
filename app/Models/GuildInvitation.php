@@ -52,16 +52,17 @@ class GuildInvitation extends Model
      */
     public function isValid(): bool
     {
+        // Vérifier si l'invitation est active
         if (!$this->is_active) {
             return false;
         }
 
-        // Vérifier l'expiration
+        // Vérifier si elle n'est pas expirée
         if ($this->expires_at && $this->expires_at->isPast()) {
             return false;
         }
 
-        // Vérifier le nombre d'utilisations
+        // Vérifier si elle n'a pas atteint le max d'utilisations
         if ($this->max_uses && $this->uses_count >= $this->max_uses) {
             return false;
         }

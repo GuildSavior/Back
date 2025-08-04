@@ -28,7 +28,7 @@ class GuildInvitationController extends Controller
 
         $request->validate([
             'max_uses' => 'nullable|integer|min:1|max:100',
-            'expires_in_hours' => 'nullable|integer|min:1|max:168', // Max 1 semaine
+            'expires_in_hours' => 'nullable|integer|min:1|max:168',
         ]);
 
         try {
@@ -45,7 +45,7 @@ class GuildInvitationController extends Controller
                 'expires_at' => $expiresAt,
             ]);
 
-            // ⭐ UTILISER L'URL BACKEND DEPUIS LE .ENV
+            // ⭐ UTILISER L'URL BACKEND COHÉRENTE
             $backendUrl = env('BACKEND_URL', env('APP_URL', 'http://127.0.0.1:8000'));
             $inviteUrl = $backendUrl . "/invite/{$invitation->code}";
 
@@ -60,10 +60,15 @@ class GuildInvitationController extends Controller
                 'success' => true,
                 'message' => 'Invitation créée avec succès',
                 'invitation' => [
+                    'id' => $invitation->id,
                     'code' => $invitation->code,
                     'url' => $inviteUrl,
                     'max_uses' => $invitation->max_uses,
+                    'uses_count' => $invitation->uses_count,
                     'expires_at' => $invitation->expires_at,
+                    'is_active' => $invitation->is_active,
+                    'is_valid' => $invitation->isValid(),
+                    'created_at' => $invitation->created_at,
                 ]
             ]);
         } catch (\Exception $e) {
@@ -96,10 +101,13 @@ class GuildInvitationController extends Controller
                                      ->orderBy('created_at', 'desc')
                                      ->get()
                                      ->map(function ($invitation) {
+                                         // ⭐ UTILISER LA MÊME LOGIQUE QUE create()
+                                         $backendUrl = env('BACKEND_URL', env('APP_URL', 'http://127.0.0.1:8000'));
+                                         
                                          return [
                                              'id' => $invitation->id,
                                              'code' => $invitation->code,
-                                             'url' => url("/invite/{$invitation->code}"), // ⭐ URL SANS /api/
+                                             'url' => $backendUrl . "/invite/{$invitation->code}",
                                              'max_uses' => $invitation->max_uses,
                                              'uses_count' => $invitation->uses_count,
                                              'expires_at' => $invitation->expires_at,
@@ -155,20 +163,31 @@ class GuildInvitationController extends Controller
 
         $guild = $invitation->guild;
 
+        if ($guild->isFull()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cette guilde est pleine.'
+            ], 403);
+        }
+
         try {
-            // Ajouter l'utilisateur à la guilde
+            // ⭐ AJOUTER L'UTILISATEUR À LA GUILDE
             $guild->members()->attach($user->id, [
                 'role' => 'member',
                 'joined_at' => now(),
             ]);
 
-            // Incrémenter le compteur d'utilisations
-            $invitation->incrementUses();
+            // ⭐ INCRÉMENTER LE COMPTEUR DE LA GUILDE
+            $guild->increment('member_count');
+
+            // ⭐ INCRÉMENTER LE COMPTEUR D'UTILISATION DE L'INVITATION
+            $invitation->increment('uses_count');
 
             Log::info('Utilisateur a rejoint une guilde via invitation:', [
                 'user_id' => $user->id,
                 'guild_id' => $guild->id,
-                'invitation_code' => $code
+                'invitation_code' => $code,
+                'new_member_count' => $guild->fresh()->member_count
             ]);
 
             return response()->json([
@@ -189,7 +208,7 @@ class GuildInvitationController extends Controller
     /**
      * Désactiver une invitation
      */
-    public function deactivate($invitationId)
+    public function deactivate($invitation)
     {
         $user = Auth::user();
         $guild = $user->ownedGuilds()->first();
@@ -201,22 +220,93 @@ class GuildInvitationController extends Controller
             ], 403);
         }
 
-        $invitation = GuildInvitation::where('id', $invitationId)
-                                    ->where('guild_id', $guild->id)
-                                    ->first();
+        $invitationRecord = GuildInvitation::where('id', $invitation)
+                                ->where('guild_id', $guild->id)
+                                ->first();
 
-        if (!$invitation) {
+        if (!$invitationRecord) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invitation introuvable.'
             ], 404);
         }
 
-        $invitation->update(['is_active' => false]);
+        $invitationRecord->update(['is_active' => false]);
 
         return response()->json([
             'success' => true,
             'message' => 'Invitation désactivée avec succès.'
         ]);
     }
+    /**
+ * Supprimer définitivement une invitation
+ */
+public function delete($invitation)
+{
+    $user = Auth::user();
+    $guild = $user->ownedGuilds()->first();
+
+    if (!$guild) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Vous ne possédez aucune guilde.'
+        ], 403);
+    }
+
+    $invitationRecord = GuildInvitation::where('id', $invitation)
+                            ->where('guild_id', $guild->id)
+                            ->first();
+
+    if (!$invitationRecord) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Invitation introuvable.'
+        ], 404);
+    }
+
+    // ✅ Suppression définitive
+    $invitationRecord->delete();
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Invitation supprimée définitivement.'
+    ]);
+}
+
+/**
+ * Nettoyer toutes les invitations inactives
+ */
+public function cleanupInactive()
+{
+    $user = Auth::user();
+    $guild = $user->ownedGuilds()->first();
+
+    if (!$guild) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Vous ne possédez aucune guilde.'
+        ], 403);
+    }
+
+    // ✅ Compter et supprimer toutes les invitations inactives
+    $inactiveCount = GuildInvitation::where('guild_id', $guild->id)
+                                   ->where('is_active', false)
+                                   ->count();
+
+    if ($inactiveCount === 0) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Aucune invitation inactive à supprimer.'
+        ], 404);
+    }
+
+    GuildInvitation::where('guild_id', $guild->id)
+                   ->where('is_active', false)
+                   ->delete();
+
+    return response()->json([
+        'success' => true,
+        'message' => "{$inactiveCount} invitation(s) inactive(s) supprimée(s)."
+    ]);
+}
 }

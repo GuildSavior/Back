@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Guild;
 use App\Models\User;
+use App\Models\GuildInvitation; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -285,6 +286,60 @@ class GuildController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération des membres'
+            ], 500);
+        }
+    }
+
+    /**
+     * Dissoudre/Supprimer une guilde (owner uniquement)
+     */
+    public function disband(Request $request)
+    {
+        $user = Auth::user();
+        
+        // Récupérer la guilde possédée par l'utilisateur
+        $guild = $user->ownedGuilds()->first();
+
+        if (!$guild) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vous ne possédez aucune guilde à dissoudre.'
+            ], 403);
+        }
+
+        try {
+            $guildName = $guild->name;
+            $memberCount = $guild->member_count;
+
+            // ⭐ SUPPRIMER TOUTES LES INVITATIONS DE LA GUILDE
+            GuildInvitation::where('guild_id', $guild->id)->delete();
+
+            // ⭐ DÉTACHER TOUS LES MEMBRES (ils n'auront plus de guilde)
+            $guild->members()->detach();
+
+            // ⭐ SUPPRIMER LA GUILDE COMPLÈTEMENT
+            $guild->delete();
+
+            Log::info('Guilde dissoute par l\'owner:', [
+                'owner_id' => $user->id,
+                'guild_name' => $guildName,
+                'members_affected' => $memberCount
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "La guilde '{$guildName}' a été dissoute avec succès. {$memberCount} membres ont été libérés."
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur dissolution guilde:', [
+                'owner_id' => $user->id,
+                'guild_id' => $guild->id,
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la dissolution de la guilde'
             ], 500);
         }
     }

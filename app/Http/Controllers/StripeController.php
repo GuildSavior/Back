@@ -13,35 +13,69 @@ class StripeController extends Controller
     public function createCheckoutSession(Request $request)
     {
         \Log::info('Stripe session creation started');
-        \Log::info('Debug Stripe config:', [
-    'stripe_secret' => env('STRIPE_SECRET') ? 'SET' : 'NOT SET',
-    'app_env' => env('APP_ENV'),
-    'config_cached' => config('app.env')
-]);
-        Stripe::setApiKey(env('STRIPE_SECRET'));
+        
+        Stripe::setApiKey(config('services.stripe.secret'));
+        
         $user = Auth::user();
         
-        $session = Session::create([
-            'payment_method_types' => ['card'],
-            'mode' => 'subscription',
-            'customer_email' => $user->email,
-            'line_items' => [[
-                'price' => 'price_1RjG4KPLliFaFqSY0jYpClS2',
-                'quantity' => 1,
-            ]],
-            'success_url' => 'http://82.112.255.241:3001/dashboard?payment=success',
-            'cancel_url' => 'http://82.112.255.241:3001/dashboard?payment=cancel',
-            'metadata' => [
-                'user_id' => $user->id,
-            ],
+        // ⭐ DEBUG ET VALIDATION DES URLS
+        $frontUrl = config('services.app.front_url') ?: env('FRONT_URL', 'http://127.0.0.1:4200');
+        
+        \Log::info('URL Configuration Debug:', [
+            'config_front_url' => config('services.app.front_url'),
+            'env_front_url' => env('FRONT_URL'),
+            'final_front_url' => $frontUrl,
+            'app_env' => env('APP_ENV')
         ]);
 
-        \Log::info('Stripe session created:', [
-            'session_id' => $session->id,
-            'url' => $session->url
-        ]);
+        // ⭐ VALIDATION DES URLS AVANT ENVOI À STRIPE
+        $successUrl = $frontUrl . '/dashboard?payment=success';
+        $cancelUrl = $frontUrl . '/dashboard?payment=cancel';
+        
+        // Valider que les URLs sont correctes
+        if (!filter_var($successUrl, FILTER_VALIDATE_URL)) {
+            \Log::error('Invalid success URL:', ['url' => $successUrl]);
+            return response()->json(['error' => 'Configuration URL invalide'], 500);
+        }
+        
+        if (!filter_var($cancelUrl, FILTER_VALIDATE_URL)) {
+            \Log::error('Invalid cancel URL:', ['url' => $cancelUrl]);
+            return response()->json(['error' => 'Configuration URL invalide'], 500);
+        }
 
-        return response()->json(['url' => $session->url]);
+        try {
+            $session = Session::create([
+                'payment_method_types' => ['card'],
+                'mode' => 'subscription',
+                'customer_email' => $user->email,
+                'line_items' => [[
+                    'price' => 'price_1RjG4KPLliFaFqSY0jYpClS2',
+                    'quantity' => 1,
+                ]],
+                'success_url' => $successUrl,
+                'cancel_url' => $cancelUrl,
+                'metadata' => [
+                    'user_id' => $user->id,
+                ],
+            ]);
+
+            \Log::info('Stripe session created successfully:', [
+                'session_id' => $session->id,
+                'success_url' => $successUrl,
+                'cancel_url' => $cancelUrl
+            ]);
+
+            return response()->json(['url' => $session->url]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Stripe session creation failed:', [
+                'error' => $e->getMessage(),
+                'success_url' => $successUrl,
+                'cancel_url' => $cancelUrl
+            ]);
+            
+            return response()->json(['error' => 'Erreur lors de la création de la session Stripe'], 500);
+        }
     }
 
     public function webhook(Request $request)
@@ -52,18 +86,15 @@ class StripeController extends Controller
         $sig_header = $request->header('Stripe-Signature');
         $event = null;
 
-        // ⭐ UTILISER LE BON WEBHOOK SECRET SELON L'ENVIRONNEMENT
         $webhookSecret = env('APP_ENV') === 'production' 
-            ? env('STRIPE_WEBHOOK_SECRET_PRODUCTION')
-            : env('STRIPE_WEBHOOK_SECRET');
-
-        \Log::info('Using webhook secret for env:', ['env' => env('APP_ENV')]);
+            ? config('services.stripe.webhook_secret_production')
+            : config('services.stripe.webhook_secret');
 
         try {
             $event = \Stripe\Webhook::constructEvent(
                 $payload, 
                 $sig_header, 
-                $webhookSecret // ⭐ SECRET DYNAMIQUE
+                $webhookSecret
             );
             
             \Log::info('Webhook event verified:', ['type' => $event->type]);
@@ -83,7 +114,6 @@ class StripeController extends Controller
             ]);
             
             if ($userId) {
-                // Crée ou update la souscription en BDD
                 \App\Models\Subscription::updateOrCreate(
                     ['user_id' => $userId],
                     [

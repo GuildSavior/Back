@@ -78,6 +78,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/{event}/participate', [EventController::class, 'participate']); // S'inscrire
             Route::post('/{event}/confirm', [EventController::class, 'confirm']);         // Confirmer venue
             Route::post('/{event}/validate', [EventController::class, 'validateAttendance']); // Valider avec code
+            Route::delete('/{event}', [EventController::class, 'delete']);
         });
     });
     

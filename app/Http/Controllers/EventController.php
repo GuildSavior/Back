@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Models\Player;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +39,7 @@ class EventController extends Controller
                           return [
                               'id' => $event->id,
                               'name' => $event->name,
+                              'access_code' => $event->access_code,
                               'description' => $event->description,
                               'start_time' => $event->start_time,
                               'end_time' => $event->end_time,
@@ -273,17 +275,49 @@ class EventController extends Controller
             ], 404);
         }
 
-        if (!$event->isOngoing() && !$event->isFinished()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'L\'événement n\'a pas encore commencé.'
-            ], 400);
+        // ⭐ DÉLAI DE GRÂCE DE 30 MINUTES APRÈS LA FIN
+        $graceTime = 30; // minutes
+        $eventEndTime = $event->end_time;
+        $graceEndTime = $eventEndTime->addMinutes($graceTime);
+        
+        if (!$event->isOngoing()) {
+            if ($event->isFinished()) {
+                // Vérifier si on est encore dans la période de grâce
+                if (now()->isAfter($graceEndTime)) {
+                    $minutesSinceEnd = now()->diffInMinutes($eventEndTime);
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Cet événement est terminé depuis {$minutesSinceEnd} minutes. Vous ne pouvez plus valider votre présence (délai de grâce de {$graceTime} minutes dépassé)."
+                    ], 410);
+                }
+                // ⭐ ON EST DANS LA PÉRIODE DE GRÂCE - AUTORISER
+                Log::info('Validation dans période de grâce:', [
+                    'event_id' => $eventId,
+                    'user_id' => $user->id,
+                    'minutes_since_end' => now()->diffInMinutes($eventEndTime)
+                ]);
+            } else {
+                // Événement pas encore commencé
+                return response()->json([
+                    'success' => false,
+                    'message' => 'L\'événement n\'a pas encore commencé. Vous pourrez valider votre présence une fois qu\'il aura commencé.'
+                ], 400);
+            }
         }
 
         if (strtoupper($request->access_code) !== $event->access_code) {
             return response()->json([
                 'success' => false,
                 'message' => 'Code d\'accès incorrect.'
+            ], 400);
+        }
+
+        // ⭐ VÉRIFIER QUE L'UTILISATEUR A UN PLAYER
+        $player = $user->player;
+        if (!$player) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vous devez créer un profil joueur avant de participer aux événements.'
             ], 400);
         }
 
@@ -314,23 +348,39 @@ class EventController extends Controller
                 'dkp_earned' => $event->dkp_reward,
             ]);
 
-            // Ajouter les DKP à l'utilisateur
-            $user->increment('dkp', $event->dkp_reward);
+            // ⭐ AJOUTER LES DKP AU PLAYER AU LIEU DU USER
+            $player->addDkp($event->dkp_reward);
+            
+            // ⭐ INCRÉMENTER LES ÉVÉNEMENTS REJOINTS
+            $player->incrementEventsJoined();
 
             DB::commit();
+
+            // ⭐ MESSAGE DIFFÉRENT SI VALIDATION TARDIVE
+            $isLateValidation = $event->isFinished();
+            $message = $isLateValidation 
+                ? "Présence validée (période de grâce) ! Vous avez gagné {$event->dkp_reward} DKP."
+                : "Présence validée ! Vous avez gagné {$event->dkp_reward} DKP.";
 
             Log::info('Présence validée événement:', [
                 'event_id' => $event->id,
                 'user_id' => $user->id,
-                'dkp_earned' => $event->dkp_reward
+                'player_id' => $player->id,
+                'dkp_earned' => $event->dkp_reward,
+                'total_dkp' => $player->fresh()->dkp,
+                'validated_at' => now()->toDateTimeString(),
+                'is_late_validation' => $isLateValidation
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Présence validée ! Vous avez gagné {$event->dkp_reward} DKP.",
+                'message' => $message,
                 'dkp_earned' => $event->dkp_reward,
-                'total_dkp' => $user->fresh()->dkp
+                'total_dkp' => $player->fresh()->dkp,
+                'events_joined' => $player->fresh()->events_joined,
+                'is_late_validation' => $isLateValidation
             ]);
+            
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erreur validation présence:', ['error' => $e->getMessage()]);
@@ -338,6 +388,92 @@ class EventController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la validation de présence'
+            ], 500);
+        }
+    }
+
+    /**
+     * Supprimer un événement (owner uniquement)
+     */
+    public function delete(Request $request, $eventId)
+    {
+        $user = Auth::user();
+        $guild = $user->ownedGuilds()->first();
+
+        if (!$guild) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vous ne possédez aucune guilde.'
+            ], 403);
+        }
+
+        $event = Event::where('id', $eventId)
+                     ->where('guild_id', $guild->id)
+                     ->where('created_by', $user->id) // ⭐ Seul le créateur peut supprimer
+                     ->first();
+
+        if (!$event) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Événement introuvable ou vous n\'avez pas les permissions.'
+            ], 404);
+        }
+
+        // ⭐ RÈGLES DE SUPPRESSION PLUS FLEXIBLES
+        $attendedParticipants = $event->participants()
+            ->wherePivot('status', 'attended')
+            ->count();
+
+        // ⭐ INTERDIRE SEULEMENT SI ÉVÉNEMENT EN COURS AVEC DES VALIDATIONS
+        if ($event->isOngoing() && $attendedParticipants > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Impossible de supprimer un événement en cours avec des participants qui ont validé leur présence.'
+            ], 400);
+        }
+
+        // ⭐ PERMETTRE LA SUPPRESSION APRÈS LA FIN (avec avertissement)
+        if ($event->isFinished() && $attendedParticipants > 0) {
+            // Optionnel : demander une confirmation côté front
+            Log::warning('Suppression événement terminé avec validations:', [
+                'event_id' => $eventId,
+                'attended_count' => $attendedParticipants
+            ]);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // ⭐ SUPPRIMER LES PARTICIPATIONS D'ABORD (clé étrangère)
+            $event->participants()->detach();
+
+            // ⭐ SUPPRIMER L'ÉVÉNEMENT
+            $event->delete();
+
+            DB::commit();
+
+            Log::info('Événement supprimé:', [
+                'event_id' => $eventId,
+                'event_name' => $event->name,
+                'guild_id' => $guild->id,
+                'deleted_by' => $user->id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Événement supprimé avec succès.'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Erreur suppression événement:', [
+                'event_id' => $eventId,
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la suppression de l\'événement'
             ], 500);
         }
     }

@@ -35,6 +35,17 @@ return [
         'client_secret' => env('DISCORD_CLIENT_SECRET'),
         'redirect' => env('DISCORD_REDIRECT_URI'),
     ],
+    'stripe' => [
+        'secret' => env('STRIPE_SECRET'),
+        'key' => env('STRIPE_KEY'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'webhook_secret_production' => env('STRIPE_WEBHOOK_SECRET_PRODUCTION'),
+    ],
+    // ⭐ CONFIGURATION URLS DYNAMIQUES
+    'app' => [
+        'front_url' => env('FRONT_URL'),
+        'backend_url' => env('BACKEND_URL'),
+    ],
 
 
 ];

@@ -63,7 +63,7 @@ class DiscordAuthController extends Controller
             $token = $user->createToken('authToken', ['expires_in' => 7200])->plainTextToken;
 
             // ⭐ UTILISER L'URL FRONTEND DEPUIS LE .ENV
-            $frontUrl = env('FRONT_URL', 'http://127.0.0.1:4200');
+            $frontUrl = config('services.app.front_url') ?: env('FRONT_URL', 'http://127.0.0.1:4200');
 
             Log::info('Redirecting to frontend:', [
                 'front_url' => $frontUrl,

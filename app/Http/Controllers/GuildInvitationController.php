@@ -238,4 +238,75 @@ class GuildInvitationController extends Controller
             'message' => 'Invitation désactivée avec succès.'
         ]);
     }
+    /**
+ * Supprimer définitivement une invitation
+ */
+public function delete($invitation)
+{
+    $user = Auth::user();
+    $guild = $user->ownedGuilds()->first();
+
+    if (!$guild) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Vous ne possédez aucune guilde.'
+        ], 403);
+    }
+
+    $invitationRecord = GuildInvitation::where('id', $invitation)
+                            ->where('guild_id', $guild->id)
+                            ->first();
+
+    if (!$invitationRecord) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Invitation introuvable.'
+        ], 404);
+    }
+
+    // ✅ Suppression définitive
+    $invitationRecord->delete();
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Invitation supprimée définitivement.'
+    ]);
+}
+
+/**
+ * Nettoyer toutes les invitations inactives
+ */
+public function cleanupInactive()
+{
+    $user = Auth::user();
+    $guild = $user->ownedGuilds()->first();
+
+    if (!$guild) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Vous ne possédez aucune guilde.'
+        ], 403);
+    }
+
+    // ✅ Compter et supprimer toutes les invitations inactives
+    $inactiveCount = GuildInvitation::where('guild_id', $guild->id)
+                                   ->where('is_active', false)
+                                   ->count();
+
+    if ($inactiveCount === 0) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Aucune invitation inactive à supprimer.'
+        ], 404);
+    }
+
+    GuildInvitation::where('guild_id', $guild->id)
+                   ->where('is_active', false)
+                   ->delete();
+
+    return response()->json([
+        'success' => true,
+        'message' => "{$inactiveCount} invitation(s) inactive(s) supprimée(s)."
+    ]);
+}
 }

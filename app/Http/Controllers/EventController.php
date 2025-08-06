@@ -348,15 +348,17 @@ class EventController extends Controller
                 'dkp_earned' => $event->dkp_reward,
             ]);
 
-            // ⭐ AJOUTER LES DKP AU PLAYER AU LIEU DU USER
-            $player->addDkp($event->dkp_reward);
-            
-            // ⭐ INCRÉMENTER LES ÉVÉNEMENTS REJOINTS
-            $player->incrementEventsJoined();
+            // ⭐ NOUVEAU : AJOUTER LES DKP À LA GUILDE SPÉCIFIQUE
+            $guildDkp = $user->getOrCreateGuildDkp($guild);
+            $guildDkp->addDkp($event->dkp_reward);
+            $guildDkp->incrementEventsJoined();
 
             DB::commit();
 
-            // ⭐ MESSAGE DIFFÉRENT SI VALIDATION TARDIVE
+            // ⭐ RÉCUPÉRER LES NOUVELLES VALEURS
+            $currentDkp = $user->getCurrentGuildDkp();
+            $currentEventsJoined = $user->getCurrentGuildEventsJoined();
+
             $isLateValidation = $event->isFinished();
             $message = $isLateValidation 
                 ? "Présence validée (période de grâce) ! Vous avez gagné {$event->dkp_reward} DKP."
@@ -365,9 +367,11 @@ class EventController extends Controller
             Log::info('Présence validée événement:', [
                 'event_id' => $event->id,
                 'user_id' => $user->id,
+                'guild_id' => $guild->id,
                 'player_id' => $player->id,
                 'dkp_earned' => $event->dkp_reward,
-                'total_dkp' => $player->fresh()->dkp,
+                'total_guild_dkp' => $currentDkp,
+                'guild_events_joined' => $currentEventsJoined,
                 'validated_at' => now()->toDateTimeString(),
                 'is_late_validation' => $isLateValidation
             ]);
@@ -376,8 +380,8 @@ class EventController extends Controller
                 'success' => true,
                 'message' => $message,
                 'dkp_earned' => $event->dkp_reward,
-                'total_dkp' => $player->fresh()->dkp,
-                'events_joined' => $player->fresh()->events_joined,
+                'total_dkp' => $currentDkp, // ⭐ DKP DE LA GUILDE ACTUELLE
+                'events_joined' => $currentEventsJoined, // ⭐ ÉVÉNEMENTS DE LA GUILDE ACTUELLE
                 'is_late_validation' => $isLateValidation
             ]);
             

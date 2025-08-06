@@ -11,6 +11,7 @@ use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\GuildController;
 use App\Http\Controllers\GuildInvitationController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\UserImageController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -46,6 +47,17 @@ Route::group(['middleware' => 'auth:sanctum'], function() {
     
     // ⭐ ROUTE POUR LISTER TOUS LES JOUEURS (optionnel)
     Route::get('/players', [PlayerController::class, 'index']);
+    
+    // ⭐ ROUTES POUR LA GALERIE D'IMAGES
+    Route::prefix('gallery')->group(function () {
+        Route::get('/', [UserImageController::class, 'index']); // Mes images
+        Route::post('/', [UserImageController::class, 'store']); // Upload image
+        Route::put('/{image}', [UserImageController::class, 'update']); // Modifier image
+        Route::delete('/{image}', [UserImageController::class, 'destroy']); // Supprimer image
+    });
+    
+    // ⭐ GALERIE PUBLIQUE D'UN UTILISATEUR
+    Route::get('/users/{user}/gallery', [UserImageController::class, 'userGallery']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {

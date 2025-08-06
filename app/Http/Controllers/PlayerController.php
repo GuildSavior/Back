@@ -180,4 +180,44 @@ class PlayerController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Afficher le profil d'un joueur spécifique (pour les autres utilisateurs)
+     */
+    public function showPlayer(Player $player)
+    {
+        try {
+            // ⭐ CHARGER LES RELATIONS NÉCESSAIRES
+            $player->load('user:id,username,avatar');
+
+            return response()->json([
+                'success' => true,
+                'player' => [
+                    'id' => $player->id,
+                    'name' => $player->name,
+                    'level' => $player->level,
+                    'class' => $player->class,
+                    'dkp' => $player->dkp,
+                    'events_joined' => $player->events_joined,
+                    'created_at' => $player->created_at,
+                    'updated_at' => $player->updated_at,
+                    // ⭐ INFOS UTILISATEUR (sans données sensibles)
+                    'user' => [
+                        'username' => $player->user->username,
+                        'avatar' => $player->user->avatar,
+                    ]
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Erreur affichage profil joueur:', [
+                'player_id' => $player->id ?? null,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération du profil'
+            ], 500);
+        }
+    }
 }

@@ -42,6 +42,7 @@ Route::group(['middleware' => 'auth:sanctum'], function() {
         Route::post('/', [PlayerController::class, 'createOrUpdate']); // Créer/modifier profil
         Route::delete('/', [PlayerController::class, 'destroy']); // Supprimer profil
     });
+    Route::get('/players/{player}', [PlayerController::class, 'showPlayer']);
     
     // ⭐ ROUTE POUR LISTER TOUS LES JOUEURS (optionnel)
     Route::get('/players', [PlayerController::class, 'index']);

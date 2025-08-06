@@ -230,4 +230,73 @@ class User extends Authenticatable
     {
         return $this->player()->exists();
     }
+
+    /**
+     * Obtenir les DKP pour la guilde actuelle
+     */
+    public function getCurrentGuildDkp(): int
+    {
+        $guild = $this->getCurrentGuild();
+        
+        if (!$guild) {
+            return 0;
+        }
+
+        $guildDkp = GuildMemberDkp::where('user_id', $this->id)
+                                  ->where('guild_id', $guild->id)
+                                  ->first();
+
+        return $guildDkp ? $guildDkp->dkp : 0;
+    }
+
+    /**
+     * Obtenir les événements rejoints pour la guilde actuelle
+     */
+    public function getCurrentGuildEventsJoined(): int
+    {
+        $guild = $this->getCurrentGuild();
+        
+        if (!$guild) {
+            return 0;
+        }
+
+        $guildDkp = GuildMemberDkp::where('user_id', $this->id)
+                                  ->where('guild_id', $guild->id)
+                                  ->first();
+
+        return $guildDkp ? $guildDkp->events_joined : 0;
+    }
+
+    /**
+     * Obtenir ou créer l'enregistrement DKP pour une guilde
+     */
+    public function getOrCreateGuildDkp(Guild $guild): GuildMemberDkp
+    {
+        return GuildMemberDkp::firstOrCreate(
+            [
+                'user_id' => $this->id,
+                'guild_id' => $guild->id
+            ],
+            [
+                'dkp' => 0,
+                'events_joined' => 0
+            ]
+        );
+    }
+
+    /**
+     * Relation avec les images de l'utilisateur
+     */
+    public function images()
+    {
+        return $this->hasMany(UserImage::class);
+    }
+
+    /**
+     * Obtenir les images publiques de l'utilisateur
+     */
+    public function publicImages()
+    {
+        return $this->hasMany(UserImage::class)->where('is_public', true);
+    }
 }

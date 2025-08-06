@@ -11,13 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('players', function (Blueprint $table) {
+        Schema::create('guild_member_dkp', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->integer('level')->default(1);
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->string('class');
+            $table->foreignId('guild_id')->constrained('guilds')->onDelete('cascade');
+            $table->integer('dkp')->default(0);
+            $table->integer('events_joined')->default(0);
             $table->timestamps();
+            
+            // ⭐ UN UTILISATEUR NE PEUT AVOIR QU'UN SEUL RECORD DKP PAR GUILDE
+            $table->unique(['user_id', 'guild_id']);
         });
     }
 
@@ -26,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('players');
+        Schema::dropIfExists('guild_member_dkp');
     }
 };

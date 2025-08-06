@@ -40,6 +40,8 @@ class UserController extends Controller
                 'is_premium' => $user->isPremium(),
                 'guild' => $user->guild,
                 'role' => $user->role,
+                'images_count' => $user->images()->count(), // ⭐ NOMBRE D'IMAGES
+                'recent_images' => $user->images()->latest()->take(3)->get(), // ⭐ 3 DERNIÈRES IMAGES
             ],
         ], 200);
     }

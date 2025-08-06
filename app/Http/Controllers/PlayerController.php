@@ -33,8 +33,8 @@ class PlayerController extends Controller
                 'name' => $player->name,
                 'level' => $player->level,
                 'class' => $player->class,
-                'dkp' => $player->dkp, // ⭐ LECTURE SEULE
-                'events_joined' => $player->events_joined, // ⭐ LECTURE SEULE
+                'dkp' => $user->getCurrentGuildDkp(), // ⭐ DKP DE LA GUILDE ACTUELLE
+                'events_joined' => $user->getCurrentGuildEventsJoined(), // ⭐ ÉVÉNEMENTS DE LA GUILDE ACTUELLE
                 'created_at' => $player->created_at,
                 'updated_at' => $player->updated_at,
             ]
@@ -89,8 +89,8 @@ class PlayerController extends Controller
                     'name' => $player->name,
                     'level' => $player->level,
                     'class' => $player->class,
-                    'dkp' => $player->dkp,
-                    'events_joined' => $player->events_joined,
+                    'dkp' => $user->getCurrentGuildDkp(),
+                    'events_joined' => $user->getCurrentGuildEventsJoined(),
                 ]
             ]);
         } catch (\Exception $e) {
@@ -187,8 +187,11 @@ class PlayerController extends Controller
     public function showPlayer(Player $player)
     {
         try {
-            // ⭐ CHARGER LES RELATIONS NÉCESSAIRES
-            $player->load('user:id,username,avatar');
+            // ⭐ CHARGER L'UTILISATEUR ET SES IMAGES PUBLIQUES
+            $player->load([
+                'user:id,username,avatar',
+                'user.publicImages:id,user_id,title,description,path,width,height,created_at'
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -197,14 +200,28 @@ class PlayerController extends Controller
                     'name' => $player->name,
                     'level' => $player->level,
                     'class' => $player->class,
-                    'dkp' => $player->dkp,
-                    'events_joined' => $player->events_joined,
+                    'dkp' => $player->user->getCurrentGuildDkp(),
+                    'events_joined' => $player->user->getCurrentGuildEventsJoined(),
                     'created_at' => $player->created_at,
                     'updated_at' => $player->updated_at,
-                    // ⭐ INFOS UTILISATEUR (sans données sensibles)
                     'user' => [
                         'username' => $player->user->username,
                         'avatar' => $player->user->avatar,
+                        // ⭐ AJOUTER LES IMAGES PUBLIQUES
+                        'images_count' => $player->user->publicImages->count(),
+                        'images' => $player->user->publicImages->map(function ($image) {
+                            return [
+                                'id' => $image->id,
+                                'title' => $image->title,
+                                'description' => $image->description,
+                                'url' => $image->url, // ⭐ UTILISE L'ACCESSOR getUrlAttribute()
+                                'width' => $image->width,
+                                'height' => $image->height,
+                                'created_at' => $image->created_at,
+                            ];
+                        }),
+                        // ⭐ OPTIONNEL : QUELQUES IMAGES RÉCENTES
+                        'recent_images' => $player->user->publicImages->take(6), // 6 dernières images
                     ]
                 ]
             ]);

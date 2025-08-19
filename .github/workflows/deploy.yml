@@ -22,7 +22,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Run tests
-        run: php artisan test --filter="DkpSystemTest|EventTest|AuthenticationTest"
+        run: php artisan test
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v0.1.7

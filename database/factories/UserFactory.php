@@ -3,35 +3,26 @@
 namespace Database\Factories;
 
 use App\Models\User;
-use App\Models\Guild;
 use App\Models\Role;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Faker\Generator as Faker;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class UserFactory extends Factory
 {
-    protected static ?string $password;
-    /**
-     * Le nom du modèle associé à la factory.
-     *
-     * @var string
-     */
     protected $model = User::class;
 
-    /**
-     * Définir l'état par défaut du modèle.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            'username' => 'chouba', 
-            'discord_id' => '0',  // Génère un nom d'utilisateur unique
+            'discord_id' => $this->faker->unique()->numerify('##########'),
+            'username' => $this->faker->unique()->userName(),
+            'email' => $this->faker->unique()->safeEmail(),
+            'avatar' => $this->faker->imageUrl(100, 100),
             'remember_token' => Str::random(10),
-            'role_id' => 1,     // Associe un rôle aléatoire à partir des rôles existants
+            'refresh_token' => Str::random(40),
+            'statut' => $this->faker->randomElement(['on', 'off']),
+            'total_dkp' => $this->faker->numberBetween(0, 1000),
+            'role_id' => Role::factory(), // ⭐ CRÉER UN RÔLE AUTOMATIQUEMENT
         ];
     }
 }

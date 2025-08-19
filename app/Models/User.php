@@ -9,6 +9,7 @@ use Jakyeru\Larascord\Traits\InteractsWithDiscord;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\GuildMemberDkp;
 
 
 class User extends Authenticatable

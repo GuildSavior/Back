@@ -1,4 +1,4 @@
-name: Laravel Deploy & Test
+name: Laravel CI/CD
 
 on:
   push:
@@ -8,21 +8,20 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up PHP
+      - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: 8.2
 
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist
+        run: composer install --no-progress --no-suggest --prefer-dist --optimize-autoloader
 
-      - name: Run tests
-        run: php artisan test
+      - name: Run Tests
+        run: php artisan test --testsuite=Feature
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v0.1.7
@@ -30,6 +29,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
           script: |
             cd /var/www/Back/
             git pull

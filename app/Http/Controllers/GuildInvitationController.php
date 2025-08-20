@@ -45,8 +45,8 @@ class GuildInvitationController extends Controller
                 'expires_at' => $expiresAt,
             ]);
 
-            // ⭐ UTILISER L'URL BACKEND COHÉRENTE
-            $backendUrl = env('BACKEND_URL', env('APP_URL', 'http://127.0.0.1:8000'));
+            // ⭐ UTILISER LA MÊME LOGIQUE QUE STRIPE
+            $backendUrl = config('services.app.backend_url') ?: env('BACKEND_URL', env('APP_URL', 'http://127.0.0.1:8000'));
             $inviteUrl = $backendUrl . "/invite/{$invitation->code}";
 
             Log::info('Invitation créée:', [
@@ -101,8 +101,8 @@ class GuildInvitationController extends Controller
                                      ->orderBy('created_at', 'desc')
                                      ->get()
                                      ->map(function ($invitation) {
-                                         // ⭐ UTILISER LA MÊME LOGIQUE QUE create()
-                                         $backendUrl = env('BACKEND_URL', env('APP_URL', 'http://127.0.0.1:8000'));
+                                         // ⭐ UTILISER LA MÊME LOGIQUE QUE STRIPE
+                                         $backendUrl = config('services.app.backend_url') ?: env('BACKEND_URL', env('APP_URL', 'http://127.0.0.1:8000'));
                                          
                                          return [
                                              'id' => $invitation->id,

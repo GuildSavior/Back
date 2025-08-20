@@ -59,16 +59,16 @@ class DiscordAuthController extends Controller
 
             Log::info('User saved in DB:', $user->toArray());
 
-            // ⭐ CORRIGER LE createToken (retirer le paramètre incorrect)
             $token = $user->createToken('authToken')->plainTextToken;
 
-            // ⭐ CORRIGER L'URL AVEC LE SLASH FINAL
-            $frontUrl = rtrim(env('FRONT_URL', 'http://127.0.0.1:4200'), '/');
+            // ⭐ UTILISER CONFIG COMME LES AUTRES CONTROLLERS
+            $frontUrl = rtrim(config('services.app.front_url', env('FRONT_URL', 'http://127.0.0.1:4200')), '/');
             $redirectUrl = $frontUrl . '/discord-callback/';
 
             Log::info('Redirecting to frontend:', [
                 'front_url' => $frontUrl,
-                'full_redirect' => $redirectUrl
+                'full_redirect' => $redirectUrl,
+                'token' => substr($token, 0, 20) . '...'
             ]);
 
             return redirect($redirectUrl)
@@ -76,12 +76,12 @@ class DiscordAuthController extends Controller
                     'auth_token',    
                     $token,          
                     120,             // 2 heures
-                    '/',             // path (tout le site)
-                    $this->getCookieDomain(), // ⭐ DOMAINE DYNAMIQUE
-                    false,           // secure (false pour http)
-                    false,           // httpOnly (false pour JS)
+                    '/',             // path
+                    $this->getCookieDomain(),
+                    false,           // secure
+                    false,           // httpOnly 
                     false,           // raw
-                    'Lax'            // ⭐ sameSite Lax pour éviter les problèmes
+                    'Lax'            // sameSite
                 ));
 
         } catch (\Exception $e) {
@@ -105,19 +105,16 @@ class DiscordAuthController extends Controller
      */
     private function getCookieDomain(): ?string
     {
-        $frontUrl = env('FRONT_URL', 'http://127.0.0.1:4200');
+        $frontUrl = config('services.app.front_url', env('FRONT_URL', 'http://127.0.0.1:4200'));
         
-        // Si c'est localhost/127.0.0.1, pas de domaine spécifique
         if (str_contains($frontUrl, '127.0.0.1') || str_contains($frontUrl, 'localhost')) {
             return null;
         }
         
-        // ⭐ AJOUTER LE SUPPORT DE TON NOUVEAU DOMAINE
         if (str_contains($frontUrl, 'guildsavior.online')) {
-            return '.guildsavior.online'; // Cookie partagé entre sous-domaines
+            return '.guildsavior.online';
         }
         
-        // Si c'est une IP de production
         if (str_contains($frontUrl, '82.112.255.241')) {
             return null;
         }

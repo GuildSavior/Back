@@ -62,15 +62,16 @@ class DiscordAuthController extends Controller
             // Génère un token d'authentification
             $token = $user->createToken('authToken', ['expires_in' => 7200])->plainTextToken;
 
-            // ⭐ UTILISER L'URL FRONTEND DEPUIS LE .ENV
-            $frontUrl = config('services.app.front_url') ?: env('FRONT_URL', 'http://127.0.0.1:4200');
+            // ⭐ CORRIGER L'URL AVEC LE SLASH FINAL
+            $frontUrl = rtrim(env('FRONT_URL', 'http://127.0.0.1:4200'), '/');
+            $redirectUrl = $frontUrl . '/discord-callback/'; // ⭐ AVEC SLASH FINAL
 
             Log::info('Redirecting to frontend:', [
                 'front_url' => $frontUrl,
-                'full_redirect' => $frontUrl . '/discord-callback'
+                'full_redirect' => $redirectUrl
             ]);
 
-            return redirect($frontUrl . '/discord-callback')
+            return redirect($redirectUrl)
                 ->withCookie(cookie(
                     'auth_token',    
                     $token,          
@@ -99,7 +100,7 @@ class DiscordAuthController extends Controller
     }
 
     /**
-     * ⭐ NOUVELLE MÉTHODE pour déterminer le domaine du cookie
+     * ⭐ CORRIGER getCookieDomain pour ton nouveau domaine
      */
     private function getCookieDomain(): ?string
     {
@@ -107,15 +108,19 @@ class DiscordAuthController extends Controller
         
         // Si c'est localhost/127.0.0.1, pas de domaine spécifique
         if (str_contains($frontUrl, '127.0.0.1') || str_contains($frontUrl, 'localhost')) {
-            return null; // Pas de domaine = fonctionne sur localhost
+            return null;
         }
         
-        // Si c'est une IP de production, utiliser l'IP avec point
+        // ⭐ AJOUTER LE SUPPORT DE TON NOUVEAU DOMAINE
+        if (str_contains($frontUrl, 'guildsavior.online')) {
+            return '.guildsavior.online'; // Cookie partagé entre sous-domaines
+        }
+        
+        // Si c'est une IP de production
         if (str_contains($frontUrl, '82.112.255.241')) {
-            return '.82.112.255.241';
+            return null;
         }
         
-        // Autres cas (domaine personnalisé)
         return null;
     }
 }

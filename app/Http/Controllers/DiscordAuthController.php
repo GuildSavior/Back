@@ -80,7 +80,6 @@ class DiscordAuthController extends Controller
                     $this->getCookieDomain(),
                     false,           // secure
                     false,           // httpOnly 
-                    false,           // raw
                     'Lax'            // sameSite
                 ));
 

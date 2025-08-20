@@ -59,12 +59,12 @@ class DiscordAuthController extends Controller
 
             Log::info('User saved in DB:', $user->toArray());
 
-            // Génère un token d'authentification
-            $token = $user->createToken('authToken', ['expires_in' => 7200])->plainTextToken;
+            // ⭐ CORRIGER LE createToken (retirer le paramètre incorrect)
+            $token = $user->createToken('authToken')->plainTextToken;
 
             // ⭐ CORRIGER L'URL AVEC LE SLASH FINAL
             $frontUrl = rtrim(env('FRONT_URL', 'http://127.0.0.1:4200'), '/');
-            $redirectUrl = $frontUrl . '/discord-callback/'; // ⭐ AVEC SLASH FINAL
+            $redirectUrl = $frontUrl . '/discord-callback/';
 
             Log::info('Redirecting to frontend:', [
                 'front_url' => $frontUrl,
@@ -80,6 +80,7 @@ class DiscordAuthController extends Controller
                     $this->getCookieDomain(), // ⭐ DOMAINE DYNAMIQUE
                     false,           // secure (false pour http)
                     false,           // httpOnly (false pour JS)
+                    false,           // raw
                     'Lax'            // ⭐ sameSite Lax pour éviter les problèmes
                 ));
 

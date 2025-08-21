@@ -44,7 +44,7 @@ jobs:
         with:
           host: 82.112.255.241
           username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /var/www/Back
             git pull origin main

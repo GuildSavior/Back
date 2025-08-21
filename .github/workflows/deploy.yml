@@ -33,11 +33,11 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.2
-          extensions: mbstring, bcmath, mysqli, pdo_mysql, zip, curl, openssl, tokenizer, xml
+          php-version: 8.4  # ⭐ CORRESPONDRE À TON SERVEUR
+          extensions: mbstring, bcmath, mysqli, pdo_mysql, zip, curl, openssl, tokenizer, xml, gd
 
       - name: Cache Composer dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: vendor
           key: composer-${{ hashFiles('composer.lock') }}
@@ -49,11 +49,13 @@ jobs:
       - name: Create .env.testing file
         run: |
           cat > .env.testing << EOF
+          APP_NAME=Laravel
           APP_ENV=testing
           APP_KEY=base64:K2ZCnY7EvbXByjA+A3XCUaux2cJdHZX8BMx6h9vrcKs=
           APP_DEBUG=true
           APP_URL=http://localhost
           
+          # ⭐ BASE DE DONNÉES TEST
           DB_CONNECTION=mysql
           DB_HOST=127.0.0.1
           DB_PORT=3306
@@ -61,35 +63,49 @@ jobs:
           DB_USERNAME=root
           DB_PASSWORD=Password1!
           
+          # ⭐ CONFIGURATION DISCORD (FAKE POUR TESTS)
+          DISCORD_CLIENT_ID=fake_client_id
+          DISCORD_CLIENT_SECRET=fake_client_secret
+          DISCORD_REDIRECT_URI=http://localhost/api/auth/discord/callback
+          
+          # ⭐ URLs TEST
+          FRONT_URL=http://localhost:4200
+          BACKEND_URL=http://localhost:8000
+          
+          # ⭐ DRIVERS SIMPLES POUR TESTS
           CACHE_DRIVER=array
           QUEUE_CONNECTION=sync
           SESSION_DRIVER=array
           MAIL_MAILER=array
+          
+          # ⭐ STRIPE FAKE
+          STRIPE_KEY=pk_test_fake
+          STRIPE_SECRET=sk_test_fake
           EOF
 
-      - name: Wait for MySQL to be ready
+      - name: Wait for MySQL
         run: |
-          until mysql -h127.0.0.1 -uroot -pPassword1! -e "SELECT 1"; do
+          timeout 60 bash -c 'until mysql -h127.0.0.1 -uroot -pPassword1! -e "SELECT 1"; do
             echo "Waiting for MySQL..."
-            sleep 5
-          done
+            sleep 2
+          done'
 
-      - name: Create database
-        run: mysql -h127.0.0.1 -uroot -pPassword1! -e "CREATE DATABASE IF NOT EXISTS guildSavior_test;"
+      - name: Setup database
+        run: |
+          mysql -h127.0.0.1 -uroot -pPassword1! -e "CREATE DATABASE IF NOT EXISTS guildSavior_test;"
+          mysql -h127.0.0.1 -uroot -pPassword1! -e "SHOW DATABASES;"
 
-      - name: Clear Laravel caches
+      - name: Clear caches and generate key
         run: |
           php artisan config:clear
           php artisan cache:clear
-
-      - name: Generate application key
-        run: php artisan key:generate --env=testing
+          php artisan key:generate --env=testing
 
       - name: Run migrations
         run: php artisan migrate --env=testing --force
 
-      - name: Run tests with PHPUnit
-        run: ./vendor/bin/phpunit --testdox --stop-on-failure
+      - name: Run Laravel tests
+        run: php artisan test --env=testing
 
   deploy:
     needs: test
@@ -98,17 +114,43 @@ jobs:
     
     steps:
       - name: Deploy to VPS
-        uses: appleboy/ssh-action@v0.1.8
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          host: 82.112.255.241
-          username: root
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            echo "🚀 Starting deployment..."
+            
+            # ⭐ ALLER DANS LE DOSSIER BACKEND
             cd /var/www/Back
+            
+            # ⭐ PULL LES DERNIERS CHANGEMENTS
+            echo "📦 Pulling latest changes..."
             git pull origin main
-            composer install --optimize-autoloader --no-dev
+            
+            # ⭐ INSTALLER LES DÉPENDANCES (SI COMPOSER.LOCK A CHANGÉ)
+            echo "📋 Installing/updating dependencies..."
+            composer install --optimize-autoloader --no-dev --no-interaction
+            
+            # ⭐ MIGRATIONS (SI NÉCESSAIRE)
+            echo "🗄️ Running migrations..."
             php artisan migrate --force
+            
+            # ⭐ NETTOYER ET RECONSTRUIRE LES CACHES
+            echo "🧹 Clearing caches..."
+            php artisan config:clear
+            php artisan cache:clear
+            php artisan route:clear
+            php artisan view:clear
+            
+            echo "🔧 Building caches..."
             php artisan config:cache
             php artisan route:cache
+            
+            # ⭐ REDÉMARRER LES SERVICES
+            echo "🔄 Restarting services..."
+            sudo systemctl restart php8.4-fpm
             sudo systemctl reload nginx
-            sudo systemctl restart php8.2-fpm
+            
+            echo "✅ Deployment completed successfully!"

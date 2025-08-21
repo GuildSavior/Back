@@ -17,15 +17,19 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.2
-          extensions: mbstring, bcmath, pdo_mysql, zip, curl, openssl, tokenizer, xml
+          extensions: mbstring, bcmath, pdo_sqlite, zip, curl, openssl, tokenizer, xml
 
       - name: Install Composer dependencies
         run: composer install --no-progress --prefer-dist
 
-      - name: Create minimal .env file
-        run: |
-          cp .env.example .env
-          php artisan key:generate
+      - name: Copy .env.testing
+        run: cp .env.testing .env
+
+      - name: Generate application key
+        run: php artisan key:generate
+
+      - name: Run migrations
+        run: php artisan migrate --force
 
       - name: Run Laravel tests
         run: php artisan test
@@ -51,3 +55,4 @@ jobs:
             php artisan config:cache
             sudo systemctl restart php8.2-fpm
             sudo systemctl reload nginx
+            echo "✅ Deployment completed!"

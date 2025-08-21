@@ -6,7 +6,7 @@ et ce projet respecte [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
-## [1.3.1] - 2025-07-25
+## [1.3.1] - 2025-08-12
 ### Corrigé
 - Mise à jour des variables d’environnement pour simplifier la gestion entre environnement local et production :
   - Séparation des bases de données (développement vs production).
@@ -15,14 +15,14 @@ et ce projet respecte [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
-## [1.3.0] - 2025-07-15
+## [1.3.0] - 2025-08-12
 ### Ajouté
 - Mise en place du système d'enchères permettant aux membres de dépenser leurs DKP.
 - Gestion des transactions et validation des enchères gagnantes.
 
 ---
 
-## [1.2.0] - 2025-07-01
+## [1.2.0] - 2025-07-20
 ### Ajouté
 - Création d’événements de guilde (réservée au propriétaire).
 - Génération automatique d’un code unique par événement pour valider la présence.
@@ -30,7 +30,7 @@ et ce projet respecte [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
-## [1.1.0] - 2025-06-15
+## [1.1.0] - 2025-07-15
 ### Ajouté
 - Fonction de création de guilde.
 - Invitations à rejoindre une guilde par lien unique.
@@ -43,7 +43,7 @@ et ce projet respecte [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
-## [1.0.0] - 2025-06-01
+## [1.0.0] - 2025-06-20
 ### Ajouté
 - Intégration de Stripe pour le paiement premium :
   - Webhook pour gérer le statut de paiement (success/failed).
@@ -52,7 +52,7 @@ et ce projet respecte [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
-## [0.2.0] - 2025-05-15
+## [0.2.0] - 2025-06-17
 ### Ajouté
 - Création du dashboard utilisateur.
 - Affichage des informations issues de Discord (pseudo, avatar).
@@ -60,7 +60,7 @@ et ce projet respecte [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
-## [0.1.0] - 2025-05-01
+## [0.1.0] - 2025-06-15
 ### Ajouté
 - Connexion via Discord OAuth2 :
   - Récupération du token Discord

@@ -12,6 +12,7 @@ use App\Http\Controllers\GuildController;
 use App\Http\Controllers\GuildInvitationController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\UserImageController;
+use App\Http\Controllers\AuctionController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -92,6 +93,16 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/{event}/confirm', [EventController::class, 'confirm']);         // Confirmer venue
             Route::post('/{event}/validate', [EventController::class, 'validateAttendance']); // Valider avec code
             Route::delete('/{event}', [EventController::class, 'delete']);
+        });
+        
+        // ⭐ NOUVELLES ROUTES POUR LES ENCHÈRES
+        Route::prefix('auctions')->group(function () {
+            Route::get('/', [AuctionController::class, 'index']);                    // Lister les enchères
+            Route::post('/', [AuctionController::class, 'create']);                  // Créer une enchère (owner)
+            Route::get('/{auction}', [AuctionController::class, 'show']);            // Voir une enchère
+            Route::post('/{auction}/bid', [AuctionController::class, 'bid']);        // Enchérir
+            Route::post('/{auction}/buyout', [AuctionController::class, 'buyout']);  // Achat instantané
+            Route::delete('/{auction}', [AuctionController::class, 'delete']);       // Supprimer/Annuler (owner)
         });
     });
     

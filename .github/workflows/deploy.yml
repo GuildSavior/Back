@@ -4,11 +4,28 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   test:
     runs-on: ubuntu-latest
     
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: Password1!
+          MYSQL_DATABASE: guildSavior_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,22 +34,67 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.2
-          extensions: mbstring, bcmath, pdo_mysql, zip, curl, openssl, tokenizer, xml
+          extensions: mbstring, bcmath, mysqli, pdo_mysql, zip, curl, openssl, tokenizer, xml
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
 
       - name: Install Composer dependencies
-        run: composer install --no-progress --prefer-dist
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
 
-      - name: Create minimal .env file
+      - name: Create .env.testing file
         run: |
-          cp .env.example .env
-          php artisan key:generate
+          cat > .env.testing << EOF
+          APP_ENV=testing
+          APP_KEY=base64:K2ZCnY7EvbXByjA+A3XCUaux2cJdHZX8BMx6h9vrcKs=
+          APP_DEBUG=true
+          APP_URL=http://localhost
+          
+          DB_CONNECTION=mysql
+          DB_HOST=127.0.0.1
+          DB_PORT=3306
+          DB_DATABASE=guildSavior_test
+          DB_USERNAME=root
+          DB_PASSWORD=Password1!
+          
+          CACHE_DRIVER=array
+          QUEUE_CONNECTION=sync
+          SESSION_DRIVER=array
+          MAIL_MAILER=array
+          EOF
 
-      - name: Run Laravel tests
-        run: php artisan test
+      - name: Wait for MySQL to be ready
+        run: |
+          until mysql -h127.0.0.1 -uroot -pPassword1! -e "SELECT 1"; do
+            echo "Waiting for MySQL..."
+            sleep 5
+          done
+
+      - name: Create database
+        run: mysql -h127.0.0.1 -uroot -pPassword1! -e "CREATE DATABASE IF NOT EXISTS guildSavior_test;"
+
+      - name: Clear Laravel caches
+        run: |
+          php artisan config:clear
+          php artisan cache:clear
+
+      - name: Generate application key
+        run: php artisan key:generate --env=testing
+
+      - name: Run migrations
+        run: php artisan migrate --env=testing --force
+
+      - name: Run tests with PHPUnit
+        run: ./vendor/bin/phpunit --testdox --stop-on-failure
 
   deploy:
     needs: test
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
       - name: Deploy to VPS
@@ -46,8 +108,7 @@ jobs:
             git pull origin main
             composer install --optimize-autoloader --no-dev
             php artisan migrate --force
-            php artisan config:clear
-            php artisan cache:clear
             php artisan config:cache
-            sudo systemctl restart php8.2-fpm
+            php artisan route:cache
             sudo systemctl reload nginx
+            sudo systemctl restart php8.2-fpm

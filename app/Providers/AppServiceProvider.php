@@ -11,7 +11,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // ⭐ ENREGISTRER TELESCOPE DANS register(), PAS boot()
+        if ($this->app->environment('local')) {
+            $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
+            $this->app->register(\Laravel\Telescope\TelescopeApplicationServiceProvider::class);
+        }
     }
 
     /**
